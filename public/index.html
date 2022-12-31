@@ -194,7 +194,7 @@
                     <p>営業時間</p>
                     <table className="table is-narrow"><tbody>
                         {['2022-12-28', '2022-12-29', '2022-12-30', '2022-12-31', '2023-01-01', '2023-01-02', '2023-01-03', '2023-01-04']
-                        .filter(d=> hidePast ? window.moment() < window.moment(d) : true)
+                        .filter(d=> hidePast ? moment().diff(moment(d), 'd') < 1 : true)
                         .map(date=>(
                             <tr key={date}><th>{moment(date).format('M/D')}</th><td><time dateTime="{date}">{shop[`open_${moment(date).format('MMDD')}`]} - {shop[`close_${moment(date).format('MMDD')}`]}</time></td></tr>
                         ))}
@@ -227,7 +227,7 @@
                 <table className="table is-narrow">
                     <tbody>
                         {['2022-12-28', '2022-12-29', '2022-12-30', '2022-12-31', '2023-01-01', '2023-01-02', '2023-01-03', '2023-01-04']
-                        .filter(d=> hidePast ? new Date() < new Date(d) : true )
+                        .filter(d=> hidePast ? moment().diff(moment(d), 'd') < 1 : true)
                         .map(date=>(
                             <tr key={date}><th>{moment(date).format('M/D')}</th><td><time dateTime="{date}">{item[`open_${moment(date).format('MMDD')}`]} - {item[`close_${moment(date).format('MMDD')}`]}</time></td></tr>
                         ))}
