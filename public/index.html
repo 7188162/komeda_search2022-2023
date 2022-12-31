@@ -156,7 +156,7 @@
                                 <label htmlFor="hidePast" className="mx-2"><input checked={hidePast} className="" id="hidePast" type="checkbox" onChange={onChangeHidePast} />過去の営業時間を隠す</label>
 
                                 <div className="select">
-                                    <select name="" id="" onChange={onChangePref}>
+                                    <select name="" id="" value={pref} onChange={onChangePref}>
                                         {prefs.map(p => <option value={p} key={p}>{p}</option>)}
                                     </select>
                                 </div>
