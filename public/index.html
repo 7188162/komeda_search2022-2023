@@ -68,6 +68,7 @@
         const [includeOkage, setIncludeOkage] = React.useState(true)
         const [includeClosed, setIncludeClosed] = React.useState(true)
         const [pref, setPref] = React.useState(window.localStorage.getItem('komedas_pref') || "東京都")
+        const [hidePast, setHidePast] = React.useState(true)
 
         const onChangePref = e => {
             setPref(e.target.value)
@@ -80,7 +81,11 @@
 
         const onChangeIncClosed = e => {            
             setIncludeClosed(e.target.checked)
-        }
+        }        
+
+        const onChangeHidePast = e => {            
+            setHidePast(e.target.checked)
+        }        
 
         const [state, setState] = React.useState({
             okage: true,
@@ -95,10 +100,10 @@
 
         const today = moment().format('MMDD')
 
-        const filter = item => (
-            ((pref === '全国' ? true : item.pref === pref)) &&
-            (includeOkage  ? true : item.type             != 'おかげ庵') &&
-            (includeClosed ? true : item[`open_${today}`] != '休')
+        const filter = item => (            
+            (pref === '全国' || item.pref === pref) &&
+            (includeOkage  || item.type             != 'おかげ庵') &&
+            (includeClosed || item[`open_${today}`] != '休')
 
             && (search === "" ? true :
                 (new RegExp(search, "i").test(item.shopname))
@@ -110,7 +115,7 @@
         const [_items, setFiltered] = React.useState([])
         React.useEffect(() => {
             setFiltered(items.filter(filter))
-        }, [search, includeOkage, includeClosed, pref, items])
+        }, [search, includeOkage, includeClosed, hidePast, pref, items])
 
         const prefs = ['全国', ...new Set(items.map(item => item.pref))]
 
@@ -145,15 +150,17 @@
                                 </div>
                             </div>
                             <div className="controls">
-                                <label htmlFor="incOkage"><input checked={includeOkage} className="" id="incOkage" type="checkbox" onChange={onChangeIncOkage} />おかげ庵</label>
-                                <label htmlFor="incClosed"><input className="" id="incClosed" type="checkbox" onChange={onChangeIncClosed} />本日休業を含む</label>
+                                <label htmlFor="incOkage" className="mx-2"><input checked={includeOkage} className="" id="incOkage" type="checkbox" onChange={onChangeIncOkage} />おかげ庵</label>
+                                <label htmlFor="incClosed" className="mx-2"><input checked={includeClosed} className="" id="incClosed" type="checkbox" onChange={onChangeIncClosed} />本日休業を含む</label>
+                                <label htmlFor="hidePast" className="mx-2"><input checked={hidePast} className="" id="hidePast" type="checkbox" onChange={onChangeHidePast} />過去の営業時間を隠す</label>
+
                                 <div className="select">
                                     <select name="" id="" onChange={onChangePref}>
                                         {prefs.map(p => <option value={p} key={p}>{p}</option>)}
                                     </select>
                                 </div>
                             </div>
-                            <TableComponent filter={filter} header={header} items={_items} ></TableComponent>
+                            <TableComponent filter={filter} header={header} items={_items} hidePast={hidePast} ></TableComponent>
                         </main>
                         <aside className="column is-one-third-widescreen is-hidden-touch" id="tw_komeda" >
                             <h2 className="subtitle">Tweets</h2>                            
@@ -167,6 +174,7 @@
 
     const Card = (props) => {
         const shop = props.item
+        const hidePast = props.hidePast
         return (
             <div className="card">
                 <div className="card-content">
@@ -185,14 +193,11 @@
                     </div>
                     <p>営業時間</p>
                     <table className="table is-narrow"><tbody>
-                        <tr><th>12/28</th><td><time dateTime="2022-12-28">{shop.open_1228} - {shop.close_1228}</time></td></tr>
-                        <tr><th>12/29</th><td><time dateTime="2022-12-29">{shop.open_1229} - {shop.close_1229}</time></td></tr>
-                        <tr><th>12/30</th><td><time dateTime="2022-12-30">{shop.open_1230} - {shop.close_1230}</time></td></tr>
-                        <tr><th>12/31</th><td><time dateTime="2022-12-31">{shop.open_1231} - {shop.close_1231}</time></td></tr>
-                        <tr><th>1/1</th><td><time dateTime="2023-01-01">{shop.open_0101} - {shop.close_0101}</time></td></tr>
-                        <tr><th>1/2</th><td><time dateTime="2023-01-02">{shop.open_0102} - {shop.close_0102}</time></td></tr>
-                        <tr><th>1/3</th><td><time dateTime="2023-01-03">{shop.open_0103} - {shop.close_0103}</time></td></tr>
-                        <tr><th>1/4</th><td><time dateTime="2023-01-04">{shop.open_0104} - {shop.close_0104}</time></td></tr>
+                        {['2022-12-28', '2022-12-29', '2022-12-30', '2022-12-31', '2023-01-01', '2023-01-02', '2023-01-03', '2023-01-04']
+                        .filter(d=> hidePast ? window.moment() < window.moment(d) : true)
+                        .map(date=>(
+                            <tr key={date}><th>{moment(date).format('M/D')}</th><td><time dateTime="{date}">{shop[`open_${moment(date).format('MMDD')}`]} - {shop[`close_${moment(date).format('MMDD')}`]}</time></td></tr>
+                        ))}
                     </tbody></table>                    
                     <p>{shop.remarks}</p>
                     </div>
@@ -202,7 +207,7 @@
 
     const Cards = (props) => {        
         return (
-            <div>{props.items.map(shop=> (<Card item={shop} key={shop.shopname}></Card>))}</div>
+            <div>{props.items.map(shop=> (<Card item={shop} key={shop.shopname} hidePast={props.hidePast}></Card>))}</div>
         )
     }
 
@@ -212,6 +217,7 @@
         </thead>)
     }
     const TableBody = (props) => {
+        const hidePast = props.hidePast
         const trs = props.items.filter(props.filter).map((item, i) => (<tr key={`tr_${i}`}>
             <td>{item.pref}</td>
             <td>{item.type}</td>
@@ -220,14 +226,12 @@
             <td>
                 <table className="table is-narrow">
                     <tbody>
-                        <tr><th>12/28</th><td>{item.open_1228} - {item.close_1228}</td></tr>
-                        <tr><th>12/29</th><td>{item.open_1229} - {item.close_1229}</td></tr>
-                        <tr><th>12/30</th><td>{item.open_1230} - {item.close_1230}</td></tr>
-                        <tr><th>12/31</th><td>{item.open_1231} - {item.close_1231}</td></tr>
-                        <tr><th>1/1</th><td>{item.open_0101} - {item.close_0101}</td></tr>
-                        <tr><th>1/2</th><td>{item.open_0102} - {item.close_0102}</td></tr>
-                        <tr><th>1/3</th><td>{item.open_0103} - {item.close_0103}</td></tr>
-                        <tr><th>1/4</th><td>{item.open_0104} - {item.close_0104}</td></tr>
+                        {['2022-12-28', '2022-12-29', '2022-12-30', '2022-12-31', '2023-01-01', '2023-01-02', '2023-01-03', '2023-01-04']
+                        .filter(d=> hidePast ? new Date() < new Date(d) : true )
+                        .map(date=>(
+                            <tr key={date}><th>{moment(date).format('M/D')}</th><td><time dateTime="{date}">{item[`open_${moment(date).format('MMDD')}`]} - {item[`close_${moment(date).format('MMDD')}`]}</time></td></tr>
+                        ))}
+
                     </tbody>
                 </table>
             </td>            
@@ -243,6 +247,8 @@
 
         const items = props.items
         const filter = props.filter
+
+        const hidePast = props.hidePast
 
         React.useEffect(() => {
             setPageCount(Math.ceil(items.filter(filter).length / pageWindow))
@@ -260,10 +266,10 @@
                 {<Pager pageCount={pageCount} currentPage={currentPage} pageWindow={pageWindow} handler={handlePaginate}></Pager>}
                 <table className="table is-narrow is-hidden-touch">
                     {<TableHeader header={props.header}></TableHeader>}
-                    {<TableBody items={paginatedItems} filter={props.filter}></TableBody>}
+                    {<TableBody items={paginatedItems} filter={props.filter} hidePast={hidePast}></TableBody>}
                 </table>
                 <div className="is-hidden-desktop">
-                    <Cards items={paginatedItems} filter={props.filter}></Cards>
+                    <Cards items={paginatedItems} filter={props.filter} hidePast={hidePast}></Cards>
                 </div>
                 {<Pager pageCount={pageCount} currentPage={currentPage} pageWindow={pageWindow} handler={handlePaginate}></Pager>}
             </div>
