@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>コメダ珈琲店2022-2023年末年始営業時間検索</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
+</head>
+
+<body>
+    <div id="app"></div>
+</body>
+<script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+<script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+<script src="https://unpkg.com/react-paginate@8.1.3/dist/react-paginate.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/min/moment.min.js"></script>
+
+<script type="text/babel">
+    const Pager = (props) => {
+        const RP = ReactPaginate.default
+        const pageWindow = props.pageWindow
+
+        const currentPage = props.currentPage
+        const pageCount = props.pageCount
+        const handlePaginate = props.handler
+
+        return <div><RP
+            forcePage={currentPage} // 現在のページをreactのstateで管理したい場合等
+            pageCount={pageCount}
+            onPageChange={handlePaginate}
+            marginPagesDisplayed={2} // 先頭と末尾に表示するページ数
+            pageRangeDisplayed={2} // 現在のページの前後をいくつ表示させるか
+            containerClassName="pagination-list justify-center" // ul(pagination本体)
+            pageClassName="" // li
+            pageLinkClassName="pagination-link rounded-full" // a
+            activeClassName="active" // active.li
+            activeLinkClassName="is-current" // active.li < a
+
+            // 戻る・進む関連
+            previousClassName="page-item" // li
+            nextClassName="page-item" // li
+            previousLabel={'<'} // a
+            previousLinkClassName="pagination-previous"
+            nextLabel={'>'} // a
+            nextLinkClassName="pagination-next"
+
+            // 先頭 or 末尾に行ったときにそれ以上戻れ(進め)なくする
+            disabledClassName="is-disabled is-hidden"
+
+            // 中間ページの省略表記関連
+            breakLabel="..."
+            breakClassName="pagination-ellipsis"
+            breakLinkClassName="page-link"
+
+        ></RP></div>
+    }
+
+    const App = () => {
+        const url = "./komeda.json"
+        const [search, setSearch] = React.useState("")
+        const [items, setItems] = React.useState([])
+        const [pageCount, setPageCount] = React.useState(0)
+
+        const [includeOkage, setIncludeOkage] = React.useState(true)
+        const [includeClosed, setIncludeClosed] = React.useState(true)
+        const [pref, setPref] = React.useState(window.localStorage.getItem('komedas_pref') || "東京都")
+
+        const onChangePref = e => {
+            setPref(e.target.value)
+            window.localStorage.setItem('komedas_pref', e.target.value)
+        }
+
+        const onChangeIncOkage = e => {
+            setIncludeOkage(e.target.checked)
+        }
+
+        const onChangeIncClosed = e => {            
+            setIncludeClosed(e.target.checked)
+        }
+
+        const [state, setState] = React.useState({
+            okage: true,
+            closed: false
+        })
+
+        React.useEffect(() => {
+            fetch(url, { headers: {} })
+                .then(res => res.json())
+                .then(res => { setItems(res); })
+        }, [])
+
+        const today = moment().format('MMDD')
+
+        const filter = item => (
+            ((pref === '全国' ? true : item.pref === pref)) &&
+            (includeOkage  ? true : item.type             != 'おかげ庵') &&
+            (includeClosed ? true : item[`open_${today}`] != '休')
+
+            && (search === "" ? true :
+                (new RegExp(search, "i").test(item.shopname))
+            )
+        )
+
+        const header = ['都道府県', '形態', '店名','電話', '営業時間', '備考']
+
+        const [_items, setFiltered] = React.useState([])
+        React.useEffect(() => {
+            setFiltered(items.filter(filter))
+        }, [search, includeOkage, includeClosed, pref, items])
+
+        const prefs = ['全国', ...new Set(items.map(item => item.pref))]
+
+        React.useEffect(() => {
+            const scpt = document.createElement('script')
+            scpt.src = "https://platform.twitter.com/widgets.js"
+            scpt.setAttribute("async", true)
+            document.getElementById("tw_komeda").appendChild(scpt)            
+        },[])
+
+        const message = `<strong>このアプリはコメダ珈琲店公式のものではありません。</strong><br /><strong>本アプリに関してコメダ珈琲店へのお問合せはご遠慮ください。</strong><br /><strong>実際の営業時間は公式サイト等でご確認ください。</strong>`
+
+        return (
+            <div>
+                <NavBar startItems={[{ href: "/", title: "Home" }, {href:"https://www.komeda.co.jp/", title:"コメダ珈琲店公式"}]} title="コメダ珈琲店検索"></NavBar>
+                <div className="container mt-1">
+                    <div className="columns">
+                        <main className="column is-two-third-widescreen is-desktop">
+                            <h1 className="title">コメダ検索</h1>
+                            <div className="notification is-warning" dangerouslySetInnerHTML={{__html:message}}></div>
+
+                            <div className="field is-horizontal">
+                                <div className="field-label is-normal">
+                                    <label htmlFor="" className="label">検索</label>
+                                </div>
+                                <div className="field-body">
+                                    <div className="field">
+                                        <p className="control">
+                                            <input type="search" placeholder="店舗名（部分一致）" className="input" onChange={e => setSearch(e.target.value)} value={search} />
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="controls">
+                                <label htmlFor="incOkage"><input checked={includeOkage} className="" id="incOkage" type="checkbox" onChange={onChangeIncOkage} />おかげ庵</label>
+                                <label htmlFor="incClosed"><input className="" id="incClosed" type="checkbox" onChange={onChangeIncClosed} />本日休業を含む</label>
+                                <div className="select">
+                                    <select name="" id="" onChange={onChangePref}>
+                                        {prefs.map(p => <option value={p} key={p}>{p}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+                            <TableComponent filter={filter} header={header} items={_items} ></TableComponent>
+                        </main>
+                        <aside className="column is-one-third-widescreen is-hidden-touch" id="tw_komeda" >
+                            <h2 className="subtitle">Tweets</h2>                            
+                            <a className="twitter-timeline" href="https://twitter.com/KomedaOfficial?ref_src=twsrc%5Etfw">Tweets by KomedaOfficial</a>                            
+                        </aside>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
+    const Card = (props) => {
+        const shop = props.item
+        return (
+            <div className="card">
+                <div className="card-content">
+                    <p className="title">{shop.type} {shop.shopname}</p>
+                    <div className="content">
+                    <div className="columns">
+                        <div className="column">
+                            <p><i className="bi bi-shop mr-2"></i>{shop.city}</p>                            
+                        </div>
+                        <div className="column">
+                            <p><i className="bi bi-compass-fill mr-2"></i><a target="_blank" href={`https://www.google.co.jp/maps/place/${encodeURIComponent(shop.type+' '+shop.shopname)}`}>地図</a></p>
+                        </div>
+                    </div>
+                        
+                    <p><i className="bi bi-telephone-fill mr-2"></i><a href="tel:{shop.tel}">{shop.tel}</a></p>
+                    </div>
+                    <p>営業時間</p>
+                    <table className="table is-narrow"><tbody>
+                        <tr><th>12/28</th><td><time dateTime="2022-12-28">{shop.open_1228} - {shop.close_1228}</time></td></tr>
+                        <tr><th>12/29</th><td><time dateTime="2022-12-29">{shop.open_1229} - {shop.close_1229}</time></td></tr>
+                        <tr><th>12/30</th><td><time dateTime="2022-12-30">{shop.open_1230} - {shop.close_1230}</time></td></tr>
+                        <tr><th>12/31</th><td><time dateTime="2022-12-31">{shop.open_1231} - {shop.close_1231}</time></td></tr>
+                        <tr><th>1/1</th><td><time dateTime="2023-01-01">{shop.open_0101} - {shop.close_0101}</time></td></tr>
+                        <tr><th>1/2</th><td><time dateTime="2023-01-02">{shop.open_0102} - {shop.close_0102}</time></td></tr>
+                        <tr><th>1/3</th><td><time dateTime="2023-01-03">{shop.open_0103} - {shop.close_0103}</time></td></tr>
+                        <tr><th>1/4</th><td><time dateTime="2023-01-04">{shop.open_0104} - {shop.close_0104}</time></td></tr>
+                    </tbody></table>                    
+                    <p>{shop.remarks}</p>
+                    </div>
+            </div>
+        )
+    }
+
+    const Cards = (props) => {        
+        return (
+            <div>{props.items.map(shop=> (<Card item={shop} key={shop.shopname}></Card>))}</div>
+        )
+    }
+
+    const TableHeader = (props) => {
+        return (<thead>
+            <tr>{props.header.map((th, i) => (<th key={`th_${i}`}>{th}</th>))}</tr>
+        </thead>)
+    }
+    const TableBody = (props) => {
+        const trs = props.items.filter(props.filter).map((item, i) => (<tr key={`tr_${i}`}>
+            <td>{item.pref}</td>
+            <td>{item.type}</td>
+            <td>{item.shopname}</td>            
+            <td><a href="tel:{item.tel}">{item.tel}</a></td>
+            <td>
+                <table className="table is-narrow">
+                    <tbody>
+                        <tr><th>12/28</th><td>{item.open_1228} - {item.close_1228}</td></tr>
+                        <tr><th>12/29</th><td>{item.open_1229} - {item.close_1229}</td></tr>
+                        <tr><th>12/30</th><td>{item.open_1230} - {item.close_1230}</td></tr>
+                        <tr><th>12/31</th><td>{item.open_1231} - {item.close_1231}</td></tr>
+                        <tr><th>1/1</th><td>{item.open_0101} - {item.close_0101}</td></tr>
+                        <tr><th>1/2</th><td>{item.open_0102} - {item.close_0102}</td></tr>
+                        <tr><th>1/3</th><td>{item.open_0103} - {item.close_0103}</td></tr>
+                        <tr><th>1/4</th><td>{item.open_0104} - {item.close_0104}</td></tr>
+                    </tbody>
+                </table>
+            </td>            
+            <td>{item.remarks}</td>
+        </tr>))
+        return (<tbody>{trs}</tbody>)
+    }
+
+    const TableComponent = (props) => {
+        const pageWindow = 20
+        const [currentPage, setCurrentPage] = React.useState(0)
+        const [pageCount, setPageCount] = React.useState(0)
+
+        const items = props.items
+        const filter = props.filter
+
+        React.useEffect(() => {
+            setPageCount(Math.ceil(items.filter(filter).length / pageWindow))
+            setCurrentPage(0)
+        }, [items])
+
+        const handlePaginate = pageSelected => {
+            setCurrentPage(pageSelected.selected)
+        }
+
+        const paginatedItems = props.items.filter(filter).slice(currentPage * pageWindow, (currentPage + 1) * pageWindow)
+
+        return (
+            <div className="mt-2">
+                {<Pager pageCount={pageCount} currentPage={currentPage} pageWindow={pageWindow} handler={handlePaginate}></Pager>}
+                <table className="table is-narrow is-hidden-touch">
+                    {<TableHeader header={props.header}></TableHeader>}
+                    {<TableBody items={paginatedItems} filter={props.filter}></TableBody>}
+                </table>
+                <div className="is-hidden-desktop">
+                    <Cards items={paginatedItems} filter={props.filter}></Cards>
+                </div>
+                {<Pager pageCount={pageCount} currentPage={currentPage} pageWindow={pageWindow} handler={handlePaginate}></Pager>}
+            </div>
+        )
+    }
+
+    const NavBar = (props) => {
+        const startItems = props.startItems.map((item, i) => (<a key={`item${i}`} className="navbar-item has-text-light"
+            href={item.href}>{item.title}</a>))
+        return (
+            <nav className="navbar has-background-primary " role="navigation" aria-label="main navigation">
+                <div className="navbar-brand">
+                    <a className="navbar-item has-text-light" href="/">{props.title}</a>
+
+                    <a role="button" className="navbar-burger" aria-label="menu" aria-expanded="false"
+                        data-target="navbarBasicExample">
+                        <span aria-hidden="true"></span>
+                        <span aria-hidden="true"></span>
+                        <span aria-hidden="true"></span>
+                    </a>
+                </div>
+
+                <div id="navbar" className="navbar-menu">
+                    <div className="navbar-start">
+                        {startItems}
+                    </div>
+                </div>
+            </nav>
+        )
+    }
+</script>
+
+<script type="text/babel">
+    const domContainer = document.querySelector('#app');
+    const root = ReactDOM.createRoot(domContainer);
+    root.render(<App />)    
+</script>
+
+</html>
